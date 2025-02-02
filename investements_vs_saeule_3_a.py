@@ -359,6 +359,7 @@ def calculate_saeule_3a_withdrawal_tax(amount):
 def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history):
     """Create a visualization of retirement phase withdrawals."""
     retirement_years = range(37, 43)
+    retirement_ages = [year + 28 for year in retirement_years]  # Convert years to ages
     
     # Collect withdrawal data
     p1_withdrawals = [next((w['After_Tax'] for w in withdrawal_history if w['Year'] == year), 0)
@@ -392,8 +393,8 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
     plt.figure(figsize=(15, 8))
     
     # Plot bars side by side
-    x = range(len(retirement_years))
-    width = 0.2  # Reduced width to accommodate more bars
+    x = range(len(retirement_ages))
+    width = 0.2
     
     # Plot bars for each person
     plt.bar([i - 1.5*width for i in x], p1_withdrawals, width, 
@@ -406,13 +407,13 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
             label='Dominic (5 accounts)', color='purple', alpha=0.7)
     
     # Customize the plot
-    plt.xlabel('Year')
+    plt.xlabel('Age')
     plt.ylabel('Withdrawal Amount (CHF)')
     plt.title('Retirement Phase Withdrawals Comparison')
     plt.legend()
     
-    # Set x-axis labels to actual years
-    plt.xticks(x, retirement_years)
+    # Set x-axis labels to actual ages
+    plt.xticks(x, retirement_ages)
     
     # Add value labels on top of bars
     for i, (v1, v2, v3, v4) in enumerate(zip(p1_withdrawals, p2_withdrawals, p3_withdrawals, p4_withdrawals)):
@@ -432,6 +433,7 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
 def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     """Create a visualization of total wealth development over time."""
     years = [entry['Year'] for entry in p1_history]
+    ages = [year + 28 for year in years]  # Convert years to ages
     
     # Calculate total wealth for Person 1 (including Säule 3a)
     p1_total_wealth = [entry['Wealth'] + entry['Saeule_3a'] for entry in p1_history]
@@ -450,20 +452,20 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     # Create the plot
     plt.figure(figsize=(15, 8))
     
-    # Plot lines
-    plt.plot(years, p1_total_wealth, label='Alice (Total)', color='blue', linewidth=2)
-    plt.plot(years, p1_regular_wealth, label='Alice (Regular Wealth)', color='skyblue', linestyle='--')
-    plt.plot(years, p1_saeule_3a, label='Alice (Säule 3a)', color='lightblue', linestyle=':')
-    plt.plot(years, p2_wealth, label='Bob (Total)', color='red', linewidth=2)
-    plt.plot(years, p3_total_wealth, label='Charly (Single 3a)', color='green', linewidth=2)
-    plt.plot(years, p4_total_wealth, label='Dominic (5 accounts)', color='purple', linewidth=2)
+    # Plot lines using ages instead of years
+    plt.plot(ages, p1_total_wealth, label='Alice (Total)', color='blue', linewidth=2)
+    plt.plot(ages, p1_regular_wealth, label='Alice (Regular Wealth)', color='skyblue', linestyle='--')
+    plt.plot(ages, p1_saeule_3a, label='Alice (Säule 3a)', color='lightblue', linestyle=':')
+    plt.plot(ages, p2_wealth, label='Bob (Total)', color='red', linewidth=2)
+    plt.plot(ages, p3_total_wealth, label='Charly (Single 3a)', color='green', linewidth=2)
+    plt.plot(ages, p4_total_wealth, label='Dominic (5 accounts)', color='purple', linewidth=2)
     
-    # Add vertical lines for key events
-    plt.axvline(x=32, color='gray', linestyle='--', alpha=0.5, label='Start of 3a Withdrawals')
-    plt.axvline(x=37, color='gray', linestyle=':', alpha=0.5, label='Retirement')
+    # Add vertical lines for key events (convert years to ages)
+    plt.axvline(x=60, color='gray', linestyle='--', alpha=0.5, label='Start of 3a Withdrawals')  # year 32 -> age 60
+    plt.axvline(x=65, color='gray', linestyle=':', alpha=0.5, label='Retirement')  # year 37 -> age 65
     
     # Customize the plot
-    plt.xlabel('Year')
+    plt.xlabel('Age')
     plt.ylabel('Wealth (CHF)')
     plt.title('Wealth Development Comparison Over Time')
     plt.legend(loc='upper left')
@@ -472,10 +474,10 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     # Format y-axis with thousands separator
     plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), ',')))
     
-    # Add annotations for key events
-    plt.text(32, plt.ylim()[0], 'Start 3a\nWithdrawals', 
+    # Add annotations for key events (using ages)
+    plt.text(60, plt.ylim()[0], 'Start 3a\nWithdrawals', 
              rotation=90, verticalalignment='bottom')
-    plt.text(37, plt.ylim()[0], 'Retirement', 
+    plt.text(65, plt.ylim()[0], 'Retirement', 
              rotation=90, verticalalignment='bottom')
     
     plt.tight_layout()
