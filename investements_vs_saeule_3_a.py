@@ -157,6 +157,15 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
     p3_withdrawals = []
     p4_withdrawals = []
 
+    # Person 5: Emily - Dynamic 3a accounts based on 50k threshold
+    p5_income = initial_income
+    p5_wealth = initial_wealth
+    p5_saeule_3a_accounts = [0]  # Start with one account
+    p5_active_accounts = [0]
+    p5_total_taxes = 0
+    p5_history = []
+    p5_withdrawals = []
+
     for year in range(1, years + 1):
         # Determine income and investment amounts based on retirement
         current_income = initial_income if year < 37 else 0
@@ -362,8 +371,108 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
             'Cumulative_Tax': p4_total_taxes,
             'Withdrawal': next((w['Amount'] for w in p4_withdrawals if w['Year'] == year), 0)
         })
-    
-    return p1_history, p2_history, p3_history, p4_history, withdrawal_history, p3_withdrawals, p4_withdrawals
+
+        # Handle Emily's strategy
+        if year < 37:
+            # Calculate and subtract taxes
+            p5_tax = calculate_total_tax(current_income - current_3a, p5_wealth)
+            p5_total_taxes += p5_tax
+            p5_wealth -= p5_tax
+
+            # Handle 3a accounts growth and contributions
+            for acc_idx in p5_active_accounts:
+                p5_saeule_3a_accounts[acc_idx] *= (1 - saeule_3a_ter)
+                p5_saeule_3a_accounts[acc_idx] *= (1 + saeule_3a_growth_rate)
+
+            # Check if current active account reaches 50k
+            current_account = p5_active_accounts[-1]
+            remaining_space = 50000 - p5_saeule_3a_accounts[current_account]
+            
+            if remaining_space > 0:
+                # Add contribution to current account
+                contribution = min(current_3a, remaining_space)
+                p5_saeule_3a_accounts[current_account] += contribution * (1 - saeule_3a_ter)
+                
+                # If there's remaining contribution, start new account
+                remaining_contribution = current_3a - contribution
+                if remaining_contribution > 0:
+                    p5_saeule_3a_accounts.append(remaining_contribution * (1 - saeule_3a_ter))
+                    p5_active_accounts.append(len(p5_saeule_3a_accounts) - 1)
+            else:
+                # Start new account
+                p5_saeule_3a_accounts.append(current_3a * (1 - saeule_3a_ter))
+                p5_active_accounts.append(len(p5_saeule_3a_accounts) - 1)
+
+            # Apply TER and growth to regular wealth
+            p5_wealth *= (1 - wealth_ter)
+            p5_wealth *= (1 + wealth_growth_rate)
+            p5_wealth += (current_investment - current_3a)
+
+        elif year == 37:
+            # Start withdrawing one 3a account per year
+            if len(p5_active_accounts) > 0:
+                account_to_close = p5_active_accounts[0]
+                account_balance = p5_saeule_3a_accounts[account_to_close]
+                withdrawal_tax = calculate_saeule_3a_withdrawal_tax(account_balance)
+                after_tax_amount = account_balance - withdrawal_tax
+                
+                # Get Person 1's withdrawal for comparison
+                p1_withdrawal = next((w['After_Tax'] for w in withdrawal_history if w['Year'] == year), 0)
+                
+                # Add excess to wealth
+                p5_wealth += (after_tax_amount - p1_withdrawal)
+                p5_withdrawals.append({
+                    'Year': year,
+                    'Amount': p1_withdrawal,
+                    'From_3a': after_tax_amount,
+                    'To_Wealth': after_tax_amount - p1_withdrawal
+                })
+                
+                p5_saeule_3a_accounts[account_to_close] = 0
+                p5_active_accounts.pop(0)
+
+        elif year > 37 and year <= 42:
+            p1_withdrawal = next((w['After_Tax'] for w in withdrawal_history if w['Year'] == year), 0)
+            
+            if len(p5_active_accounts) > 0:
+                # Still have 3a accounts to withdraw from
+                account_to_close = p5_active_accounts[0]
+                account_balance = p5_saeule_3a_accounts[account_to_close]
+                withdrawal_tax = calculate_saeule_3a_withdrawal_tax(account_balance)
+                after_tax_amount = account_balance - withdrawal_tax
+                
+                # Add excess to wealth
+                p5_wealth += (after_tax_amount - p1_withdrawal)
+                p5_withdrawals.append({
+                    'Year': year,
+                    'Amount': p1_withdrawal,
+                    'From_3a': after_tax_amount,
+                    'To_Wealth': after_tax_amount - p1_withdrawal
+                })
+                
+                p5_saeule_3a_accounts[account_to_close] = 0
+                p5_active_accounts.pop(0)
+            else:
+                # No more 3a accounts, withdraw from wealth
+                p5_wealth -= p1_withdrawal
+                p5_withdrawals.append({
+                    'Year': year,
+                    'Amount': p1_withdrawal,
+                    'From_Wealth': p1_withdrawal
+                })
+
+        # Store Emily's history
+        p5_history.append({
+            'Year': year,
+            'Wealth': p5_wealth,
+            'Saeule_3a': sum(p5_saeule_3a_accounts),
+            'Saeule_3a_Accounts': p5_saeule_3a_accounts.copy(),
+            'Yearly_Tax': p5_tax,
+            'Cumulative_Tax': p5_total_taxes,
+            'Withdrawal': next((w['Amount'] for w in p5_withdrawals if w['Year'] == year), 0)
+        })
+
+    return p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals
 
 def calculate_saeule_3a_withdrawal_tax(amount):
     """Calculate tax due on Säule 3a withdrawal."""
@@ -389,7 +498,7 @@ def calculate_saeule_3a_withdrawal_tax(amount):
     
     return amount * tax_rate
 
-def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p3_withdrawals, p4_withdrawals):
+def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p5_history, p3_withdrawals, p4_withdrawals, p5_withdrawals):
     """Create a visualization of retirement phase withdrawals."""
     retirement_years = range(37, 43)
     retirement_ages = [year + 28 for year in retirement_years]
@@ -433,6 +542,22 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
             to_wealth = 0
         p4_additional.append(to_wealth)
     
+    # For Emily, get matched withdrawals and additional money to wealth
+    p5_matched = []
+    p5_additional = []
+    for year in retirement_years:
+        withdrawal = next((h['Withdrawal'] for h in p5_history if h['Year'] == year), 0)
+        p5_matched.append(withdrawal)
+        
+        # Get the additional amount that goes to wealth (if any)
+        p5_withdrawal = next((w for w in p5_withdrawals if w['Year'] == year), None)
+        if p5_withdrawal and 'From_3a' in p5_withdrawal:
+            from_3a = p5_withdrawal['From_3a']
+            to_wealth = from_3a - withdrawal if from_3a > withdrawal else 0
+        else:
+            to_wealth = 0
+        p5_additional.append(to_wealth)
+    
     # Create the plot
     plt.figure(figsize=(15, 8))
     
@@ -460,6 +585,13 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
             bottom=p4_matched,
             label='Dominic (To Wealth)', color='lavender', alpha=0.7)
     
+    # Plot Emily's bars: matched withdrawals and additional money stacked
+    plt.bar([i + 2.5*width for i in x], p5_matched, width,
+            label='Emily (Dynamic)', color='orange', alpha=0.7)
+    plt.bar([i + 2.5*width for i in x], p5_additional, width,
+            bottom=p5_matched,
+            label='Emily (To Wealth)', color='moccasin', alpha=0.7)
+    
     # Customize the plot
     plt.xlabel('Age')
     plt.ylabel('Amount (CHF)')
@@ -470,9 +602,10 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
     plt.xticks(x, retirement_ages)
     
     # Add value labels on top of bars
-    for i, (v1, v2, v3, v3a, v4, v4a) in enumerate(zip(p1_withdrawals, p2_withdrawals, 
+    for i, (v1, v2, v3, v3a, v4, v4a, v5, v5a) in enumerate(zip(p1_withdrawals, p2_withdrawals, 
                                                        p3_matched, p3_additional,
-                                                       p4_matched, p4_additional)):
+                                                       p4_matched, p4_additional,
+                                                       p5_matched, p5_additional)):
         plt.text(i - 1.5*width, v1, f'{v1:,.0f}', ha='center', va='bottom', rotation=45, fontsize=8)
         plt.text(i - 0.5*width, v2, f'{v2:,.0f}', ha='center', va='bottom', rotation=45, fontsize=8)
         if v3a > 0:
@@ -481,6 +614,9 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
         if v4a > 0:
             plt.text(i + 1.5*width, v4 + v4a, f'+{v4a:,.0f}', ha='center', va='bottom', rotation=45, fontsize=8)
         plt.text(i + 1.5*width, v4/2, f'{v4:,.0f}', ha='center', va='center', rotation=45, fontsize=8)
+        if v5a > 0:
+            plt.text(i + 2.5*width, v5 + v5a, f'+{v5a:,.0f}', ha='center', va='bottom', rotation=45, fontsize=8)
+        plt.text(i + 2.5*width, v5/2, f'{v5:,.0f}', ha='center', va='center', rotation=45, fontsize=8)
     
     # Add grid for better readability
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
@@ -490,7 +626,7 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
     
     return plt.gcf()
 
-def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
+def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history):
     """Create a visualization of total wealth development over time."""
     years = [entry['Year'] for entry in p1_history]
     ages = [year + 28 for year in years]  # Convert years to ages
@@ -509,6 +645,9 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     # Calculate total wealth for Person 4 (Dominic)
     p4_total_wealth = [entry['Wealth'] + entry['Saeule_3a'] for entry in p4_history]
     
+    # Calculate total wealth for Person 5 (Emily)
+    p5_total_wealth = [entry['Wealth'] + entry['Saeule_3a'] for entry in p5_history]
+    
     # Create the plot
     plt.figure(figsize=(15, 8))
     
@@ -519,6 +658,7 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     plt.plot(ages, p2_wealth, label='Bob (Total)', color='red', linewidth=2)
     plt.plot(ages, p3_total_wealth, label='Charly (Single 3a)', color='green', linewidth=2)
     plt.plot(ages, p4_total_wealth, label='Dominic (5 accounts)', color='purple', linewidth=2)
+    plt.plot(ages, p5_total_wealth, label='Emily (Dynamic)', color='orange', linewidth=2)
     
     # Add vertical lines for key events (convert years to ages)
     plt.axvline(x=60, color='gray', linestyle='--', alpha=0.5, label='Start of 3a Withdrawals')  # year 32 -> age 60
@@ -544,7 +684,7 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history):
     
     return plt.gcf()
 
-def print_comparison(p1_history, p2_history, p3_history, p4_history, withdrawal_history, p3_withdrawals, p4_withdrawals, saeule_3a_contribution=7258):
+def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258):
     """Print detailed comparison of both strategies."""
     print("\n=== Investment Strategy Comparison (0.39% TER only on Säule 3a) ===")
     print("-" * 100)
@@ -730,12 +870,47 @@ def print_comparison(p1_history, p2_history, p3_history, p4_history, withdrawal_
                   f"{total_3a:14,.2f} | "
                   f"{contributions:14,.2f}")
 
+    print("\n=== Emily's Detailed Retirement Phase Analysis (Years 37-42) ===")
+    print("-" * 160)
+    print(f"{'Year':^6} | {'3a Balance':^15} | {'3a After Tax':^15} | {'Alice Gets':^15} | {'To Wealth':^15} | {'Wealth Before':^15} | {'Expected After':^15} | {'Actual After':^15}")
+    print("-" * 160)
+    
+    for year in range(37, 43):
+        p5_data = next((h for h in p5_history if h['Year'] == year), None)
+        prev_p5_data = next((h for h in p5_history if h['Year'] == year-1), None)
+        p1_withdrawal = next((w['After_Tax'] for w in withdrawal_history if w['Year'] == year), 0)
+        p5_withdrawal = next((w for w in p5_withdrawals if w['Year'] == year), None)
+        
+        if p5_data and prev_p5_data:
+            if p5_withdrawal and 'From_3a' in p5_withdrawal:  # Years with 3a withdrawals
+                from_3a = p5_withdrawal['From_3a']
+                to_wealth = p5_withdrawal['To_Wealth']
+                expected_after = prev_p5_data['Wealth'] + to_wealth
+                print(f"{year:4}   | "
+                      f"{p5_data['Saeule_3a']:14,.2f} | "
+                      f"{from_3a:14,.2f} | "
+                      f"{p1_withdrawal:14,.2f} | "
+                      f"{to_wealth:14,.2f} | "
+                      f"{prev_p5_data['Wealth']:14,.2f} | "
+                      f"{expected_after:14,.2f} | "
+                      f"{p5_data['Wealth']:14,.2f}")
+            else:  # Years withdrawing from wealth
+                expected_after = prev_p5_data['Wealth'] - p1_withdrawal
+                print(f"{year:4}   | "
+                      f"{'0':>14} | "
+                      f"{'0':>14} | "
+                      f"{p1_withdrawal:14,.2f} | "
+                      f"{'0':>14} | "
+                      f"{prev_p5_data['Wealth']:14,.2f} | "
+                      f"{expected_after:14,.2f} | "
+                      f"{p5_data['Wealth']:14,.2f}")
+
     # Keep the visualization calls
-    plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p3_withdrawals, p4_withdrawals)
-    plot_wealth_development(p1_history, p2_history, p3_history, p4_history)
+    plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p5_history, p3_withdrawals, p4_withdrawals, p5_withdrawals)
+    plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history)
     plt.show()
 
 if __name__ == "__main__":
     # Run the simulation with 11 Säule 3a accounts
-    p1_history, p2_history, p3_history, p4_history, withdrawal_history, p3_withdrawals, p4_withdrawals = simulate_investment_strategies(num_3a_accounts=11)
-    print_comparison(p1_history, p2_history, p3_history, p4_history, withdrawal_history, p3_withdrawals, p4_withdrawals, saeule_3a_contribution=7258)
+    p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals = simulate_investment_strategies(num_3a_accounts=11)
+    print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258)
