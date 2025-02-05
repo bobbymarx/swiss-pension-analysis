@@ -638,11 +638,11 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_h
     # Plot lines using ages instead of years
     plt.plot(ages, p1_total_wealth, label='Alice (Total)', color='blue', linewidth=2)
     plt.plot(ages, p1_regular_wealth, label='Alice (Regular Wealth)', color='skyblue', linestyle='--')
-    plt.plot(ages, p1_saeule_3a, label='Alice (Säule 3a)', color='lightblue', linestyle=':')
+    plt.plot(ages, p1_saeule_3a, label='Alice (pillar 3a total)', color='lightblue', linestyle=':')
     plt.plot(ages, p2_wealth, label='Bob (Total)', color='red', linewidth=2)
-    plt.plot(ages, p3_total_wealth, label='Charly (Single 3a)', color='green', linewidth=2)
-    plt.plot(ages, p4_total_wealth, label='Dominic (5 accounts)', color='purple', linewidth=2)
-    plt.plot(ages, p5_total_wealth, label='Emily (Dynamic)', color='orange', linewidth=2)
+    plt.plot(ages, p3_total_wealth, label='Charly (Single pillar 3a)', color='green', linewidth=2)
+    plt.plot(ages, p4_total_wealth, label='Dominic (5 accounts pillar 3a)', color='purple', linewidth=2)
+    plt.plot(ages, p5_total_wealth, label='Emily (Dynamic pillar 3a)', color='orange', linewidth=2)
     
     # Add vertical lines for key events (convert years to ages)
     plt.axvline(x=60, color='gray', linestyle='--', alpha=0.5, label='Start of 3a Withdrawals')  # year 32 -> age 60
