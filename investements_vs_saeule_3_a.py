@@ -668,6 +668,80 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_h
     
     return plt.gcf()
 
+def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history):
+    """Create a visualization focusing on the final two years of wealth differences compared to Bob."""
+    final_years = [41, 42]
+    ages = [year + 28 for year in final_years]
+    
+    # Get wealth data for final years
+    def get_final_wealth(history, has_3a=True):
+        if has_3a:
+            return [next((entry['Wealth'] + entry['Saeule_3a'] 
+                         for entry in history if entry['Year'] == year), 0)
+                    for year in final_years]
+        else:
+            return [next((entry['Wealth']
+                         for entry in history if entry['Year'] == year), 0)
+                    for year in final_years]
+    
+    # Get wealth values for all strategies
+    p1_wealth = get_final_wealth(p1_history, has_3a=True)
+    p2_wealth = get_final_wealth(p2_history, has_3a=False)  # Bob's wealth (reference)
+    p3_wealth = get_final_wealth(p3_history, has_3a=True)
+    p4_wealth = get_final_wealth(p4_history, has_3a=True)
+    p5_wealth = get_final_wealth(p5_history, has_3a=True)
+    
+    # Calculate differences compared to Bob
+    p1_diff = [p1 - p2 for p1, p2 in zip(p1_wealth, p2_wealth)]
+    p3_diff = [p3 - p2 for p3, p2 in zip(p3_wealth, p2_wealth)]
+    p4_diff = [p4 - p2 for p4, p2 in zip(p4_wealth, p2_wealth)]
+    p5_diff = [p5 - p2 for p5, p2 in zip(p5_wealth, p2_wealth)]
+    
+    # Create the plot
+    plt.figure(figsize=(12, 8))
+    
+    # Plot bars for each person
+    width = 0.2
+    x = range(len(final_years))
+    
+    plt.bar([i - 1.5*width for i in x], p1_diff, width, 
+            label='Alice vs Bob', color='skyblue', alpha=0.7)
+    plt.bar([i - 0.5*width for i in x], p3_diff, width,
+            label='Charly vs Bob', color='lightgreen', alpha=0.7)
+    plt.bar([i + 0.5*width for i in x], p4_diff, width,
+            label='Dominic vs Bob', color='purple', alpha=0.7)
+    plt.bar([i + 1.5*width for i in x], p5_diff, width,
+            label='Emily vs Bob', color='orange', alpha=0.7)
+    
+    # Add reference line for Bob (at 0)
+    plt.axhline(y=0, color='lightcoral', linestyle='-', alpha=0.5, label='Bob (reference)')
+    
+    # Customize the plot
+    plt.xlabel('Age')
+    plt.ylabel('Wealth Difference vs Bob (CHF)')
+    plt.title('Final Years Wealth Comparison (Relative to Bob)')
+    plt.legend()
+    
+    # Set x-axis labels to ages
+    plt.xticks(x, ages)
+    
+    # Add value labels on top of bars
+    for i, (v1, v3, v4, v5) in enumerate(zip(p1_diff, p3_diff, p4_diff, p5_diff)):
+        plt.text(i - 1.5*width, v1, f'{v1:+,.0f}', ha='center', va='bottom' if v1 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(i - 0.5*width, v3, f'{v3:+,.0f}', ha='center', va='bottom' if v3 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(i + 0.5*width, v4, f'{v4:+,.0f}', ha='center', va='bottom' if v4 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(i + 1.5*width, v5, f'{v5:+,.0f}', ha='center', va='bottom' if v5 > 0 else 'top', rotation=45, fontsize=8)
+    
+    # Add grid for better readability
+    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    
+    # Format y-axis with thousands separator
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), '+,') if x != 0 else '0'))
+    
+    plt.tight_layout()
+    
+    return plt.gcf()
+
 def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258):
     """Print detailed comparison of both strategies."""
     print("\n=== Investment Strategy Comparison (0.39% TER only on Säule 3a) ===")
@@ -915,6 +989,7 @@ def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history,
     # Keep the visualization calls
     plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p5_history, p3_withdrawals, p4_withdrawals, p5_withdrawals)
     plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history)
+    plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
     plt.show()
 
 if __name__ == "__main__":
