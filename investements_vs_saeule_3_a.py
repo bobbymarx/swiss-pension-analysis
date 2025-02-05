@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import random
 
 def calculate_wealth_tax(wealth):
     """Calculate wealth tax ('Vermögenssteuer') for Canton Bern."""
@@ -115,6 +116,26 @@ if __name__ == "__main__":
     for income, wealth in test_cases:
         print_tax_analysis(income, wealth)
 
+def calculate_3a_contribution(base_contribution, year):
+    """Calculate 3a contribution limit for a given year with 2% ± 0.5% biennial increase."""
+    if year <= 1:
+        return base_contribution
+        
+    # Calculate number of 2-year periods since start
+    periods = (year - 1) // 2
+    
+    # Generate random variations for each period
+    variations = [2 + random.uniform(-0.5, 0.5) for _ in range(periods)]
+    
+    # Calculate cumulative increase
+    total_increase = 1.0
+    for variation in variations:
+        total_increase *= (1 + variation/100)
+    
+    # Calculate new contribution, capped at yearly_investment
+    new_contribution = min(base_contribution * total_increase, 20000)
+    return new_contribution
+
 def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
                                 yearly_investment=20000, saeule_3a_contribution=7258,
                                 wealth_growth_rate=0.04, saeule_3a_growth_rate=0.04, 
@@ -165,6 +186,17 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
     p5_total_taxes = 0
     p5_history = []
     p5_withdrawals = []
+
+    # Initialize Alice_adjusted similar to Alice
+    p6_income = initial_income
+    p6_wealth = initial_wealth
+    p6_saeule_3a_accounts = [0] * num_3a_accounts
+    p6_active_accounts = list(range(num_3a_accounts))
+    p6_total_taxes = 0
+    p6_history = []
+
+    # Set random seed for reproducibility
+    random.seed(42)
 
     for year in range(1, years + 1):
         # Determine income and investment amounts based on retirement
@@ -456,7 +488,43 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
             'Withdrawal': next((w['Amount'] for w in p5_withdrawals if w['Year'] == year), 0)
         })
 
-    return p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals
+        # Handle Alice_adjusted similar to Alice but with adjusted contribution
+        if year < 37:
+            # Calculate and subtract taxes
+            p6_tax = calculate_total_tax(current_income - current_3a, p6_wealth)
+            p6_total_taxes += p6_tax
+            p6_wealth -= p6_tax
+            
+            # Handle active 3a accounts with adjusted contribution
+            if len(p6_active_accounts) > 0:
+                contribution_per_account = current_3a / len(p6_active_accounts)
+            else:
+                contribution_per_account = 0
+                
+            for acc_idx in p6_active_accounts:
+                p6_saeule_3a_accounts[acc_idx] *= (1 - saeule_3a_ter)
+                p6_saeule_3a_accounts[acc_idx] *= (1 + saeule_3a_growth_rate)
+                p6_saeule_3a_accounts[acc_idx] += contribution_per_account * (1 - saeule_3a_ter)
+            
+            # Apply TER and growth to regular wealth
+            p6_wealth *= (1 - wealth_ter)
+            p6_wealth *= (1 + wealth_growth_rate)
+            p6_wealth += (current_investment - current_3a)
+        
+        # Store history for Alice_adjusted
+        p6_history.append({
+            'Year': year,
+            'Wealth': p6_wealth,
+            'Saeule_3a': sum(p6_saeule_3a_accounts),
+            'Saeule_3a_Accounts': p6_saeule_3a_accounts.copy(),
+            'Active_Accounts': len(p6_active_accounts),
+            'Yearly_Tax': p6_tax if year < 37 else 0,
+            'Cumulative_Tax': p6_total_taxes,
+            'Yearly_Withdrawal': 0,
+            '3a_Contribution': current_3a
+        })
+
+    return p1_history, p2_history, p3_history, p4_history, p5_history, p6_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals
 
 def calculate_saeule_3a_withdrawal_tax(amount):
     """Calculate tax due on Säule 3a withdrawal."""
@@ -610,7 +678,7 @@ def plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history
     
     return plt.gcf()
 
-def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history):
+def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history):
     """Create a visualization of total wealth development over time."""
     years = [entry['Year'] for entry in p1_history]
     ages = [year + 28 for year in years]  # Convert years to ages
@@ -632,6 +700,9 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_h
     # Calculate total wealth for Person 5 (Emily)
     p5_total_wealth = [entry['Wealth'] + entry['Saeule_3a'] for entry in p5_history]
     
+    # Calculate total wealth for Alice_adjusted
+    p6_total_wealth = [entry['Wealth'] + entry['Saeule_3a'] for entry in p6_history]
+    
     # Create the plot
     plt.figure(figsize=(15, 8))
     
@@ -643,6 +714,7 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_h
     plt.plot(ages, p3_total_wealth, label='Charly (Single pillar 3a)', color='green', linewidth=2)
     plt.plot(ages, p4_total_wealth, label='Dominic (5 accounts pillar 3a)', color='purple', linewidth=2)
     plt.plot(ages, p5_total_wealth, label='Emily (Dynamic pillar 3a)', color='orange', linewidth=2)
+    plt.plot(ages, p6_total_wealth, label='Alice_adjusted (Dynamic 3a limit)', color='magenta', linewidth=2)
     
     # Add vertical lines for key events (convert years to ages)
     plt.axvline(x=60, color='gray', linestyle='--', alpha=0.5, label='Start of 3a Withdrawals')  # year 32 -> age 60
@@ -668,7 +740,7 @@ def plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_h
     
     return plt.gcf()
 
-def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history):
+def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history):
     """Create a visualization focusing on the final two years of wealth differences compared to Bob."""
     final_years = [41, 42]
     ages = [year + 28 for year in final_years]
@@ -690,12 +762,14 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
     p3_wealth = get_final_wealth(p3_history, has_3a=True)
     p4_wealth = get_final_wealth(p4_history, has_3a=True)
     p5_wealth = get_final_wealth(p5_history, has_3a=True)
+    p6_wealth = get_final_wealth(p6_history, has_3a=True)
     
     # Calculate differences compared to Bob
     p1_diff = [p1 - p2 for p1, p2 in zip(p1_wealth, p2_wealth)]
     p3_diff = [p3 - p2 for p3, p2 in zip(p3_wealth, p2_wealth)]
     p4_diff = [p4 - p2 for p4, p2 in zip(p4_wealth, p2_wealth)]
     p5_diff = [p5 - p2 for p5, p2 in zip(p5_wealth, p2_wealth)]
+    p6_diff = [p6 - p2 for p6, p2 in zip(p6_wealth, p2_wealth)]
     
     # Create the plot
     plt.figure(figsize=(12, 8))
@@ -712,6 +786,8 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
             label='Dominic vs Bob', color='purple', alpha=0.7)
     plt.bar([i + 1.5*width for i in x], p5_diff, width,
             label='Emily vs Bob', color='orange', alpha=0.7)
+    plt.bar([i + 2.5*width for i in x], p6_diff, width,
+            label='Alice_adjusted vs Bob', color='magenta', alpha=0.7)
     
     # Add reference line for Bob (at 0)
     plt.axhline(y=0, color='lightcoral', linestyle='-', alpha=0.5, label='Bob (reference)')
@@ -726,11 +802,12 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
     plt.xticks(x, ages)
     
     # Add value labels on top of bars
-    for i, (v1, v3, v4, v5) in enumerate(zip(p1_diff, p3_diff, p4_diff, p5_diff)):
+    for i, (v1, v3, v4, v5, v6) in enumerate(zip(p1_diff, p3_diff, p4_diff, p5_diff, p6_diff)):
         plt.text(i - 1.5*width, v1, f'{v1:+,.0f}', ha='center', va='bottom' if v1 > 0 else 'top', rotation=45, fontsize=8)
         plt.text(i - 0.5*width, v3, f'{v3:+,.0f}', ha='center', va='bottom' if v3 > 0 else 'top', rotation=45, fontsize=8)
         plt.text(i + 0.5*width, v4, f'{v4:+,.0f}', ha='center', va='bottom' if v4 > 0 else 'top', rotation=45, fontsize=8)
         plt.text(i + 1.5*width, v5, f'{v5:+,.0f}', ha='center', va='bottom' if v5 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(i + 2.5*width, v6, f'{v6:+,.0f}', ha='center', va='bottom' if v6 > 0 else 'top', rotation=45, fontsize=8)
     
     # Add grid for better readability
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
@@ -742,7 +819,7 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
     
     return plt.gcf()
 
-def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258):
+def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258):
     """Print detailed comparison of both strategies."""
     print("\n=== Investment Strategy Comparison (0.39% TER only on Säule 3a) ===")
     print("-" * 100)
@@ -986,13 +1063,32 @@ def print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history,
                   f"{total_3a:14,.2f} | "
                   f"{contributions:14,.2f}")
 
+    print("\n=== Alice_adjusted's 3a Contribution Analysis ===")
+    print("-" * 160)
+    print(f"{'Year':^6} | {'Base Contribution':^15} | {'Adjusted Contribution':^20} | {'Increase %':^12} | {'Total 3a':^15} | {'Wealth':^15}")
+    print("-" * 160)
+    
+    base_contribution = saeule_3a_contribution
+    for year in range(30, 43):
+        p6_data = next((h for h in p6_history if h['Year'] == year), None)
+        if p6_data:
+            adjusted_contribution = p6_data.get('3a_Contribution', 0)
+            increase_percent = ((adjusted_contribution / base_contribution) - 1) * 100 if adjusted_contribution > 0 else 0
+            
+            print(f"{year:4}   | "
+                  f"{base_contribution:14,.2f} | "
+                  f"{adjusted_contribution:19,.2f} | "
+                  f"{increase_percent:11.2f} | "
+                  f"{p6_data['Saeule_3a']:14,.2f} | "
+                  f"{p6_data['Wealth']:14,.2f}")
+    
     # Keep the visualization calls
     plot_retirement_phase(withdrawal_history, p2_history, p3_history, p4_history, p5_history, p3_withdrawals, p4_withdrawals, p5_withdrawals)
-    plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history)
-    plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history)
+    plot_wealth_development(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history)
+    plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history)
     plt.show()
 
 if __name__ == "__main__":
     # Run the simulation with 11 Säule 3a accounts
-    p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals = simulate_investment_strategies(num_3a_accounts=11)
-    print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258)
+    p1_history, p2_history, p3_history, p4_history, p5_history, p6_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals = simulate_investment_strategies(num_3a_accounts=11)
+    print_comparison(p1_history, p2_history, p3_history, p4_history, p5_history, p6_history, withdrawal_history, p3_withdrawals, p4_withdrawals, p5_withdrawals, saeule_3a_contribution=7258)
