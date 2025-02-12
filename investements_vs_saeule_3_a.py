@@ -3,7 +3,7 @@ import random
 
 def calculate_wealth_tax(wealth):
     """Calculate wealth tax ('Vermögenssteuer') for Canton Bern."""
-    if wealth <= 97000:  # Freibetrag
+    if wealth <= 100000:  # Freibetrag
         return 0
     
     # Tax brackets in CHF and their rates in permille (‰)
