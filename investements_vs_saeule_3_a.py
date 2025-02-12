@@ -774,19 +774,19 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history,
     # Create the plot
     plt.figure(figsize=(12, 8))
     
-    # Plot bars for each person
-    width = 0.2
-    x = range(len(final_years))
+    # Plot bars for each person with increased spacing between years
+    width = 0.15
+    x = [0, 1]  # Increase spacing between year groups (was: range(len(final_years)))
     
-    plt.bar([i - 1.5*width for i in x], p1_diff, width, 
+    plt.bar([i - 2*width for i in x], p1_diff, width, 
             label='Alice vs Bob', color='skyblue', alpha=0.7)
-    plt.bar([i - 0.5*width for i in x], p3_diff, width,
+    plt.bar([i - width for i in x], p3_diff, width,
             label='Charly vs Bob', color='lightgreen', alpha=0.7)
-    plt.bar([i + 0.5*width for i in x], p4_diff, width,
+    plt.bar([i for i in x], p4_diff, width,
             label='Dominic vs Bob', color='purple', alpha=0.7)
-    plt.bar([i + 1.5*width for i in x], p5_diff, width,
+    plt.bar([i + width for i in x], p5_diff, width,
             label='Emily vs Bob', color='orange', alpha=0.7)
-    plt.bar([i + 2.5*width for i in x], p6_diff, width,
+    plt.bar([i + 2*width for i in x], p6_diff, width,
             label='Alice_adjusted vs Bob', color='magenta', alpha=0.7)
     
     # Add reference line for Bob (at 0)
@@ -798,16 +798,17 @@ def plot_final_years(p1_history, p2_history, p3_history, p4_history, p5_history,
     plt.title('Final Years Wealth Comparison (Relative to Bob)')
     plt.legend()
     
-    # Set x-axis labels to ages
+    # Set x-axis labels to ages with adjusted positions
     plt.xticks(x, ages)
     
-    # Add value labels on top of bars
+    # Add value labels on top of bars with adjusted positions
     for i, (v1, v3, v4, v5, v6) in enumerate(zip(p1_diff, p3_diff, p4_diff, p5_diff, p6_diff)):
-        plt.text(i - 1.5*width, v1, f'{v1:+,.0f}', ha='center', va='bottom' if v1 > 0 else 'top', rotation=45, fontsize=8)
-        plt.text(i - 0.5*width, v3, f'{v3:+,.0f}', ha='center', va='bottom' if v3 > 0 else 'top', rotation=45, fontsize=8)
-        plt.text(i + 0.5*width, v4, f'{v4:+,.0f}', ha='center', va='bottom' if v4 > 0 else 'top', rotation=45, fontsize=8)
-        plt.text(i + 1.5*width, v5, f'{v5:+,.0f}', ha='center', va='bottom' if v5 > 0 else 'top', rotation=45, fontsize=8)
-        plt.text(i + 2.5*width, v6, f'{v6:+,.0f}', ha='center', va='bottom' if v6 > 0 else 'top', rotation=45, fontsize=8)
+        x_pos = x[i]  # Use new x positions
+        plt.text(x_pos - 2*width, v1, f'{v1:+,.0f}', ha='center', va='bottom' if v1 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(x_pos - width, v3, f'{v3:+,.0f}', ha='center', va='bottom' if v3 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(x_pos, v4, f'{v4:+,.0f}', ha='center', va='bottom' if v4 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(x_pos + width, v5, f'{v5:+,.0f}', ha='center', va='bottom' if v5 > 0 else 'top', rotation=45, fontsize=8)
+        plt.text(x_pos + 2*width, v6, f'{v6:+,.0f}', ha='center', va='bottom' if v6 > 0 else 'top', rotation=45, fontsize=8)
     
     # Add grid for better readability
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
