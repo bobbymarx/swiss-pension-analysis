@@ -3,7 +3,7 @@ import random
 
 def calculate_wealth_tax(wealth):
     """Calculate wealth tax ('Vermögenssteuer') for Canton Bern."""
-    if wealth <= 100000:  # Freibetrag
+    if wealth <= 97000:  # Freibetrag
         return 0
     
     # Tax brackets in CHF and their rates in permille (‰)
@@ -150,13 +150,13 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
     p1_total_taxes = 0
     p1_history = []
     withdrawal_history = []
-
+    
     # Person 2: Bob - Only standard investments
     p2_income = initial_income
     p2_wealth = initial_wealth
     p2_total_taxes = 0
     p2_history = []
-
+    
     # Person 3: Charly - Single Säule 3a account, withdrawal at retirement
     p3_income = initial_income
     p3_wealth = initial_wealth
@@ -197,7 +197,7 @@ def simulate_investment_strategies(initial_income=100000, initial_wealth=120000,
 
     # Set random seed for reproducibility
     random.seed(42)
-
+    
     for year in range(1, years + 1):
         # Determine income and investment amounts based on retirement
         current_income = initial_income if year < 37 else 0
