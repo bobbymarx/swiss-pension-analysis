@@ -72,7 +72,7 @@ The `simulate_investment_strategies` function accepts the following parameters:
 
 ## Further Reading
 
-For a detailed analysis of the results, check out our [Medium article](YOUR_ARTICLE_LINK).
+For a detailed analysis of the results, check out our [Medium article](https://medium.com/@marksrobert295/the-pillar-3a-is-it-a-smart-investment-for-young-people-in-switzerland-ff33a3cc8e92).
 
 ## Contributing
 
